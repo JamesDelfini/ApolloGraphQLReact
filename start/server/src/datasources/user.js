@@ -1,3 +1,13 @@
+/** 
+ * Caching: Although the RESTDataSource class provides a built-in cache, 
+ * the generic DataSource class does not. You can use cache primitives to 
+ * build your own caching functionality.
+ * 
+ * Apollo doesn't provide a canonical DataSource subclass for SQL databases
+ * at this time (although we'd love to help guide you if you're interested
+ * in contributing). So, we've created a custom data source for our SQLite
+ * database by extending the generic DataSource class.
+ */
 const { DataSource } = require('apollo-datasource');
 const isEmail = require('isemail');
 
@@ -8,15 +18,29 @@ class UserAPI extends DataSource {
   }
 
   /**
+   * The initialize method: Implement this method if you want to pass any 
+   * configuration options to your subclass. The UserAPI class uses initialize
+   * to access our API's context.
+   */
+  /**
    * This is a function that gets called by ApolloServer when being setup.
    * This function gets called with the datasource config including things
    * like caches and context. We'll assign this.context to the request context
    * here, so we can know about the user making requests
    */
   initialize(config) {
+    /**
+     * this.context: A graph API's context is an object that's shared across 
+     * every resolver in a GraphQL request. We'll cover resolvers in detail in
+     * the next section. Right now, all you need to know is that the context is
+     * useful for storing and sharing user information.
+     */
     this.context = config.context;
   }
 
+  /**
+   * Finds or creates a user with a given email in the database.
+   */
   /**
    * User can be called with an argument that includes email, but it doesn't
    * have to be. If the user is already on the context, it will use that user
@@ -31,6 +55,9 @@ class UserAPI extends DataSource {
     return users && users[0] ? users[0] : null;
   }
 
+  /**
+   * Takes an object with an array of launchIds and books them for the logged-in user.
+   */
   async bookTrips({ launchIds }) {
     const userId = this.context.user.id;
     if (!userId) return;
@@ -55,11 +82,17 @@ class UserAPI extends DataSource {
     return res && res.length ? res[0].get() : false;
   }
 
+  /**
+   * Takes an object with a launchId and cancels that launch for the logged-in user.
+   */
   async cancelTrip({ launchId }) {
     const userId = this.context.user.id;
     return !!this.store.trips.destroy({ where: { userId, launchId } });
   }
 
+  /**
+   * Returns all booked trips for the logged-in user.
+   */
   async getLaunchIdsByUser() {
     const userId = this.context.user.id;
     const found = await this.store.trips.findAll({
@@ -70,6 +103,9 @@ class UserAPI extends DataSource {
       : [];
   }
 
+  /**
+   *  Determines whether the logged-in user has booked a trip on a particular launch.
+   */
   async isBookedOnLaunch({ launchId }) {
     if (!this.context || !this.context.user) return false;
     const userId = this.context.user.id;
